@@ -1,0 +1,36 @@
+# Python/runtime caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local virtual environments
+.venv/
+venv/
+
+# Build outputs
+build/
+dist/
+*.spec.bak
+
+# Runtime logs and generated diagnostics
+logs/
+own_currency_bot/logs/
+*.log
+
+# Original packaged/recovered artifacts
+通货Bot.exe
+recovered_source/
+_internal/
+
+# Template backups generated while recropping
+images/backup*/
+images/*backup*
+
+# Large local API snapshots used during exploration
+poe2scout_snapshot_pairs.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

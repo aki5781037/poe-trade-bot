@@ -1,0 +1,205 @@
+# ============================================
+# 通货自动交易 Bot 配置文件
+# ============================================
+
+# 目标货币（对方支付的通货）
+BASE_CURRENCY = "混沌石"
+
+# 交易对列表
+TRADING_PAIRS = [
+  # {name = "無效石"},
+  {name = "削切之兆"},
+  # {name = "完美崇高石"},
+]
+
+# 混沌石低买高卖候选
+# buy_c/sell_c 为当前截图里的建议挂单价：用混沌石买入 1 个商品，再卖回混沌石。
+# gold 为该商品在通货交易所的单件金币费。
+CHAOS_FLIP_DIVINE_TO_CHAOS = 10.14
+CHAOS_FLIP_PAIRS = [
+  {name = "無效石", buy_c = 5.53, sell_c = 5.67, gold = 1000},
+  {name = "完美混沌石", buy_c = 36, sell_c = 37, gold = 1500},
+  {name = "破裂石", buy_c = 73.10, sell_c = 74, gold = 1000},
+  {name = "幻像異界", buy_c = 25.50, sell_c = 27, gold = 1000},
+  {name = "削切之兆", buy_c = 67, sell_c = 68, gold = 800},
+  {name = "左旋抺除之兆", buy_c = 91, sell_c = 94, gold = 1000},
+  {name = "右旋抺除之兆", buy_c = 68, sell_c = 70, gold = 1000},
+  {name = "左旋廢止之兆", buy_c = 92, sell_c = 99, gold = 1000},
+  {name = "右旋廢止之兆", buy_c = 60, sell_c = 61, gold = 1000},
+  {name = "光明之兆", buy_c = 88, sell_c = 89, gold = 1000},
+]
+
+# 从 title 中心到市场比率下面那个数字的截图区域左上角的偏移 (px)
+TITLE_OFFSET_X = -84
+TITLE_OFFSET_Y = 56
+
+# 市场比率下面那个数字的截图区域尺寸 (px)
+CROP_W = 170
+CROP_H = 30
+
+# 从 need.png 中心到输入框的偏移 (px)
+INPUT_LEFT_OFFSET_X = 118
+INPUT_RIGHT_OFFSET_X = 286
+INPUT_OFFSET_Y = 31
+
+# 点击 need.png 的偏移 (px)
+NEED_OFFSET_Y = 31           # 垂直偏移，聚焦我需要的
+NEED_RIGHT_OFFSET_X = 369
+
+# 入库点击偏移 —— 相对于 done 图片中心 (px)
+STOCK_BUY_X1 = -100
+STOCK_BUY_Y1 = -45
+STOCK_BUY_X2 = -100
+STOCK_BUY_Y2 = -45
+STOCK_SELL_X1 = -100
+STOCK_SELL_Y1 = -45
+STOCK_SELL_X2 = -100
+STOCK_SELL_Y2 = -45
+
+# 交易数量上限；0 表示取消 200 上限，按脚本动态搜索范围
+MAX_LIMIT = 0
+
+# 买入压价百分比区间 (%)
+BUY_REDUCE_MIN = 1
+BUY_REDUCE_MAX = 1.5
+
+# 卖出利润百分比区间 (%)
+SELL_PROFIT_MIN = 1.0
+SELL_PROFIT_MAX = 1.5
+
+# 图片匹配阈值 (0~1，越高越严格)
+FIND_THRESHOLD = 0.94
+
+# 输入后端：pydm_driver = PyDmGame/YJS 驱动级键鼠；pyautogui = 普通用户层键鼠
+INPUT_BACKEND = "pydm_driver"
+
+# PyDmGame/YJS 驱动级键鼠参数（来自 F:\DIABLO bot）
+PYDM_VID = "0xC216"
+PYDM_PID = "0x0301"
+PYDM_MOUSE_ENABLED = true
+PYDM_MOVE_MODE = "instant"   # instant | smooth
+PYDM_MOVE_STEP_MS = 10
+PYDM_DLL_PATH = ""           # 留空则使用 own_currency_bot/drivers/msdk.dll
+
+# 游戏窗口绑定
+GAME_WINDOW_TITLE = "Path of Exile 2"
+USE_WINDOW_CAPTURE = true
+
+# 安洁/NPC OCR 只扫地面角色区域，排除小地图里的 NPC 名字
+NPC_OCR_WINDOW_X = 0
+NPC_OCR_WINDOW_Y = 260
+NPC_OCR_WINDOW_W = 620
+NPC_OCR_WINDOW_H = 520
+
+# 点击 NPC 后，只在交互菜单可能出现的区域找“通货交易”
+NPC_MENU_OCR_WINDOW_X = 300
+NPC_MENU_OCR_WINDOW_Y = 520
+NPC_MENU_OCR_WINDOW_W = 680
+NPC_MENU_OCR_WINDOW_H = 260
+
+# 背包金币读取区域（相对于游戏窗口左上角）
+INVENTORY_KEY = "i"
+GOLD_CROP_X = 585
+GOLD_CROP_Y = 642
+GOLD_CROP_W = 90
+GOLD_CROP_H = 28
+INVENTORY_PANEL_STRICT = true
+INVENTORY_TITLE_RIGHT_MARGIN = 650
+INVENTORY_TITLE_Y = 20
+INVENTORY_TITLE_W = 620
+INVENTORY_TITLE_H = 160
+INVENTORY_GRID_VISUAL_MIN_SCORE = 0.035
+
+# 市场比率 Alt 竞争交易面板读取
+MARKET_HOVER_OFFSET_X = -13
+MARKET_HOVER_OFFSET_Y = 47
+COMPETITION_PANEL_OFFSET_X = -77
+COMPETITION_PANEL_OFFSET_Y = 18
+COMPETITION_PANEL_W = 150
+COMPETITION_PANEL_H = 285
+COMPETITION_FIRST_ROW_X = 8
+COMPETITION_FIRST_ROW_Y = 214
+COMPETITION_FIRST_ROW_W = 66
+COMPETITION_FIRST_ROW_H = 22
+BUY_COMPETE_STEP = 1
+
+# 金币成本模型
+GOLD_FEE_PER_ORDER = 0
+GOLD_FEE_PER_OMEN = 800
+
+# POE2 Scout 策略扫描
+STRATEGY_CHAIN_MAX_OMEN = 500
+
+# 游戏内价差扫描
+INGAME_SCAN_LIMIT = 0
+INGAME_SCAN_INTERVAL = 60
+INGAME_SCAN_MIN_SPREAD_PCT = 1.0
+INGAME_CONFIRM_ENABLED = true
+INGAME_CONFIRM_PRICE_TOLERANCE_PCT = 2.0
+AUTO_TRADE_CHAOS_BUDGET = 420
+
+SELECT_SEARCH_OFFSET_X = 150
+
+SELECT_SEARCH_OFFSET_Y = 528
+
+SELECT_POPUP_OFFSET_X = -30
+
+SELECT_POPUP_OFFSET_Y = -180
+
+SELECT_POPUP_W = 560
+
+SELECT_POPUP_H = 660
+
+ORDER_COUNT_OFFSET_X = 392
+
+ORDER_COUNT_OFFSET_Y = 87
+
+ORDER_COUNT_W = 64
+
+ORDER_COUNT_H = 30
+
+ORDER_TIMEOUT_SECONDS = 600
+
+# ?????????? 5 ?????? 1 ??ALT ?????/?
+ORDER_BOARD_MODE = true
+ORDER_BOARD_MAX_ORDERS = 10
+ORDER_BOARD_ORDER_SIZE = 1
+ALLOW_INITIAL_CHAOS_FALLBACK = false
+ORDER_BUTTON_SINGLE_CLICK_OFFSET_Y = 8
+ORDER_AFTER_CLICK_VERIFY_DELAY = 0.55
+ORDER_AFTER_CONFIRM_VERIFY_DELAY = 0.45
+ORDER_BOARD_PAIRS = [
+  {name = "左旋抺除之兆"},
+  {name = "右旋抺除之兆"},
+  {name = "左旋廢止之兆"},
+  {name = "右旋廢止之兆"},
+  {name = "光明之兆"},
+]
+ORDER_COUNT_HAVE_OFFSET_X = 77
+
+ORDER_COUNT_HAVE_OFFSET_Y = 105
+
+SLOT_LEFT_OFFSET_X = -78
+
+SLOT_RIGHT_FROM_HAVE_OFFSET_X = -78
+
+SLOT_OFFSET_Y = 39
+
+# ??????????????????????? OCR ???????
+INVENTORY_GRID_X = 716
+INVENTORY_GRID_Y = 515
+INVENTORY_GRID_USE_EDGE_ANCHOR = true
+INVENTORY_GRID_RIGHT_MARGIN = 580
+INVENTORY_GRID_BOTTOM_MARGIN = 484
+INVENTORY_GRID_CELL_W = 48
+INVENTORY_GRID_CELL_H = 48
+INVENTORY_GRID_COLS = 12
+INVENTORY_GRID_ROWS = 5
+INVENTORY_HOVER_DELAY = 0.18
+INVENTORY_TO_SELL_SLOT_DELAY = 0.35
+
+# 失败时自动保存截图和 OCR 坐标，便于换分辨率后定位
+DEBUG_SNAPSHOT_ON_FAILURE = true
+DEBUG_SNAPSHOT_INVENTORY_MISS = false
+GAME_UNAVAILABLE_COOLDOWN_THRESHOLD = 3
+GAME_UNAVAILABLE_COOLDOWN_SECONDS = 8
