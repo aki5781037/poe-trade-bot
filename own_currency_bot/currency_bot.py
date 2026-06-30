@@ -253,20 +253,20 @@ def game_unavailable_guard() -> bool:
     reason = game_unavailable_reason()
     if not reason:
         if unavailable_streak:
-            log("game available again; reset unavailable streak:", unavailable_streak)
+            log("游戏窗口已恢复，重置不可用计数:", unavailable_streak)
         unavailable_streak = 0
         last_unavailable_reason = None
         return False
 
     unavailable_streak += 1
     if reason != last_unavailable_reason or unavailable_streak == 1:
-        log("game unavailable:", reason)
+        log("游戏当前不可用:", reason)
     last_unavailable_reason = reason
 
     threshold = int(config.get("GAME_UNAVAILABLE_COOLDOWN_THRESHOLD", 3))
     cooldown = float(config.get("GAME_UNAVAILABLE_COOLDOWN_SECONDS", 8))
     if unavailable_streak >= threshold:
-        log("game unavailable cooldown:", reason, "streak=", unavailable_streak, "sleep=", cooldown)
+        log("游戏不可用，进入冷却等待:", reason, "连续次数=", unavailable_streak, "等待秒数=", cooldown)
         if input_backend is not None:
             input_backend.release_all()
         time.sleep(cooldown)
@@ -329,7 +329,7 @@ def selected_currency_matches(name: str, side: str, layout: TradeLayout | None =
     raw, normalized = selected_currency_text(side, layout)
     target = normalize_currency_text(name)
     ok = bool(target and (target in normalized or normalized.startswith(target)))
-    log("selected currency check:", side, name, "raw=", repr(raw), "ok=", ok)
+    log("栏位通货检查:", side, name, "OCR=", repr(raw), "结果=", ok)
     return ok
 
 def close_currency_selector_if_open() -> bool:
@@ -364,6 +364,19 @@ def click_selector_all_tab() -> None:
     time.sleep(float(config.get("SELECT_ALL_TAB_DELAY", 0.18)))
 
 
+def confirm_selected_currency_or_snapshot(name: str, side: str, reason: str) -> bool:
+    layout = current_trade_layout()
+    if selector_is_open():
+        log("选择器仍未关闭，选择未完成:", side, name, "阶段=", reason)
+        save_debug_snapshot(f"selector_still_open_{reason}_{side}_{name}")
+        return False
+    if selected_currency_matches(name, side, layout):
+        return True
+    log("栏位未确认目标通货，停止以避免选错:", side, name, "阶段=", reason)
+    save_debug_snapshot(f"selector_unconfirmed_{reason}_{side}_{name}")
+    return False
+
+
 def close_blocking_vendor_panel() -> bool:
     centers = ocr_text_centers(*capture_target_screen()[:2])
     blocking_markers = ["赌博", "賭博", "在此輸入關鍵字", "在此输入关键字"]
@@ -377,7 +390,7 @@ def close_blocking_vendor_panel() -> bool:
         int(config.get("VENDOR_CLOSE_SCREEN_Y", 211)),
     )
     time.sleep(0.5)
-    log("closed blocking vendor panel")
+    log("已关闭遮挡的 NPC 面板")
     return True
 
 
@@ -959,7 +972,7 @@ def find_image(
 def click_xy(x: int, y: int, button: str = "left", duration: float = 0.08) -> None:
     check_stop()
     if config.get("DRY_RUN"):
-        log("[DRY_RUN] click", x, y, button)
+        log("[DRY_RUN] 点击", x, y, button)
         return
     get_input().mouse_move(x, y, duration_ms=int(duration * 1000))
     check_stop()
@@ -1003,7 +1016,7 @@ def wait_for_image(
 def paste_text(text: str) -> None:
     check_stop()
     if config.get("DRY_RUN"):
-        log("[DRY_RUN] paste", text)
+        log("[DRY_RUN] 粘贴", text)
         return
     pyperclip.copy(text)
     check_stop()
@@ -1014,7 +1027,7 @@ def paste_text(text: str) -> None:
 def replace_text(text: str) -> None:
     check_stop()
     if config.get("DRY_RUN"):
-        log("[DRY_RUN] replace", text)
+        log("[DRY_RUN] 替换文本", text)
         return
     get_input().hotkey("ctrl", "a", hold_ms=35)
     paste_text(text)
@@ -1949,7 +1962,7 @@ def wait_selector_open(timeout: float = 1.2) -> bool:
 
 def open_currency_selector(side: str, layout: TradeLayout) -> TradeLayout | None:
     if not layout.need:
-        log("currency slot anchor missing:", side)
+        log("选择器槽位锚点缺失:", side)
         save_debug_snapshot(f"selector_slot_missing_{side}")
         return None
 
@@ -1970,7 +1983,7 @@ def open_currency_selector(side: str, layout: TradeLayout) -> TradeLayout | None
     if wait_selector_open() or (opened_layout.window is not None and not opened_layout.is_open):
         return opened_layout
 
-    # Fallback to the icon/slot area if the original script's field click did not open it.
+    # 如果点击文字区域没打开选择器，再尝试点击图标/槽位区域。
     layout = current_trade_layout()
     slot = layout.left_slot() if side == "left" else layout.right_slot()
     if slot:
@@ -1980,7 +1993,7 @@ def open_currency_selector(side: str, layout: TradeLayout) -> TradeLayout | None
         if wait_selector_open() or (opened_layout.window is not None and not opened_layout.is_open):
             return opened_layout
 
-    log("currency selector did not open:", side, "primary=", primary, "slot=", slot)
+    log("通货选择器未打开:", side, "主点击=", primary, "槽位=", slot)
     save_debug_snapshot(f"selector_open_failed_{side}")
     return None
 
@@ -2028,13 +2041,12 @@ def click_currency_search_result(name: str, side: str, layout: TradeLayout) -> b
     template = template_path(f"{name}.png")
     template_exists = template.exists()
     if not template_exists:
-        log("currency template missing; will use OCR fallback:", name)
+        log("通货模板缺失，将使用 OCR 兜底:", name)
 
-    # The selector keeps its last scroll/category. Always filter through the
-    # search box so target items are visible before template matching.
+    # 选择器会保留上次滚动/分类，先点“全部”并搜索，保证目标尽量在可见区域。
     search_xy = layout.selector_search_box()
     if not search_xy:
-        log("selector search anchor missing:", side, name)
+        log("选择器搜索框锚点缺失:", side, name)
         save_debug_snapshot(f"selector_search_anchor_missing_{side}_{name}")
         return False
     click_selector_all_tab()
@@ -2050,14 +2062,8 @@ def click_currency_search_result(name: str, side: str, layout: TradeLayout) -> b
             click_xy(first_x, first_y)
             log("已点击筛选后的第一个选择结果:", side, name, (first_x, first_y))
             time.sleep(float(config.get("SELECT_AFTER_CLICK_DELAY", 0.25)))
-            selected_layout = current_trade_layout()
-            selector_open = selector_is_open()
-            if not selector_open and selected_currency_matches(name, side, selected_layout):
-                return True
-            if not selector_open:
-                log("选择器已关闭但栏位未确认目标，停止以避免选错:", side, name)
-                save_debug_snapshot(f"selector_first_result_unconfirmed_{side}_{name}")
-                return False
+            if not selector_is_open():
+                return confirm_selected_currency_or_snapshot(name, side, "first_result")
             log("第一个选择结果未确认命中，继续模板/OCR兜底:", side, name)
 
     match = None
@@ -2105,25 +2111,18 @@ def click_currency_search_result(name: str, side: str, layout: TradeLayout) -> b
                 retry_x = win.left + int(config.get("SELECT_FIRST_RESULT_RETRY_WINDOW_X", 178))
                 retry_y = win.top + int(config.get("SELECT_FIRST_RESULT_WINDOW_Y", 209))
                 click_xy(retry_x, retry_y)
-                log("selector still open; retried first result icon:", side, name, (retry_x, retry_y))
+                log("选择器仍打开，重试点击第一个结果图标:", side, name, (retry_x, retry_y))
                 time.sleep(0.35)
-        if selector_is_open():
-            log("selector did not close after result click:", side, name)
-            save_debug_snapshot(f"selector_result_click_failed_{side}_{name}")
-            return False
-        return True
+        return confirm_selected_currency_or_snapshot(name, side, "ocr_or_first_fallback")
 
     click_xy(match.x, match.y)
     log("已点击弹窗中的通货:", side, name, (match.x, match.y), f"匹配={match.score:.3f}")
     time.sleep(0.35)
     if selector_is_open():
         click_xy(match.x, match.y)
-        log("selector still open; retried template match click:", side, name, (match.x, match.y))
+        log("选择器仍打开，重试模板匹配点击:", side, name, (match.x, match.y))
         time.sleep(0.35)
-    if selector_is_open():
-        save_debug_snapshot(f"selector_template_click_failed_{side}_{name}")
-        return False
-    return True
+    return confirm_selected_currency_or_snapshot(name, side, "template_match")
 
 
 def select_currency(left_name: str, right_name: str) -> bool:
@@ -2133,7 +2132,7 @@ def select_currency(left_name: str, right_name: str) -> bool:
     layout = current_trade_layout()
     if not layout.is_open:
         if not ensure_trade_ui_open():
-            log("trade UI not open before selecting currency")
+            log("选择通货前交易界面未打开")
             return False
         layout = current_trade_layout()
     if not selected_currency_matches(left_name, "left", layout):
@@ -3144,7 +3143,7 @@ def find_done_anchor() -> Match | None:
     if not match:
         return None
     x, y, text = match
-    log("done anchor by OCR:", (x, y), repr(text))
+    log("通过 OCR 找到完成订单锚点:", (x, y), repr(text))
     return Match(x=x, y=y, score=1.0)
 
 
@@ -3159,7 +3158,7 @@ def handle_order_board_once() -> None:
     check_stop()
     layout = current_trade_layout()
     if layout.window:
-        log("bound window:", layout.window.title, f"{layout.window.width}x{layout.window.height}", f"({layout.window.left},{layout.window.top})")
+        log("已绑定窗口:", layout.window.title, f"{layout.window.width}x{layout.window.height}", f"({layout.window.left},{layout.window.top})")
     close_order_confirmation_if_visible()
     if not ensure_trade_and_inventory_open():
         log("交易界面或背包未就绪，等待")
@@ -3576,7 +3575,7 @@ def place_order(
         return False
 
     if verify_item_name and not selected_currency_matches(verify_item_name, verify_item_side, layout):
-        log("selected item mismatch before order; abort:", verify_item_side, verify_item_name)
+        log("下单前栏位不是目标商品，已中止:", verify_item_side, verify_item_name)
         save_debug_snapshot(f"selected_item_mismatch_{verify_item_name}")
         return False
 
@@ -3786,7 +3785,7 @@ def stock_in(done: Match, action: str) -> None:
             continue
         clicked.add((x, y))
         if config.get("DRY_RUN"):
-            log("[DRY_RUN] stock", action, x, y)
+            log("[DRY_RUN] 入库点击", action, x, y)
             continue
         check_stop()
         get_input().mouse_move(x, y, duration_ms=80)
@@ -3798,7 +3797,7 @@ def stock_in(done: Match, action: str) -> None:
         finally:
             get_input().key_up("ctrl")
         time.sleep(0.2)
-    log("stock-in via ctrl+right-click:", action)
+    log("已通过 Ctrl+右键入库完成订单:", action)
 
 
 def configured_pairs() -> list[str]:
@@ -4153,7 +4152,7 @@ def save_debug_snapshot(reason: str) -> tuple[Path | None, Path | None]:
         for text, x, y in centers:
             lines.append(f"{x},{y}\t{text}")
         text_path.write_text("\n".join(lines), encoding="utf-8")
-        log("debug snapshot saved:", reason, image_path, text_path)
+        log("调试截图已保存:", reason, image_path, text_path)
         return image_path, text_path
     except Exception as exc:
         log("调试截图失败:", reason, exc)
