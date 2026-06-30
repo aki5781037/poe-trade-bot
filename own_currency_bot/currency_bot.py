@@ -2050,8 +2050,15 @@ def click_currency_search_result(name: str, side: str, layout: TradeLayout) -> b
             click_xy(first_x, first_y)
             log("已点击筛选后的第一个选择结果:", side, name, (first_x, first_y))
             time.sleep(float(config.get("SELECT_AFTER_CLICK_DELAY", 0.25)))
-            if current_trade_layout().is_open:
+            selected_layout = current_trade_layout()
+            selector_open = selector_is_open()
+            if not selector_open and selected_currency_matches(name, side, selected_layout):
                 return True
+            if not selector_open:
+                log("选择器已关闭但栏位未确认目标，停止以避免选错:", side, name)
+                save_debug_snapshot(f"selector_first_result_unconfirmed_{side}_{name}")
+                return False
+            log("第一个选择结果未确认命中，继续模板/OCR兜底:", side, name)
 
     match = None
     for _attempt in range(6):
@@ -2686,6 +2693,30 @@ def put_inventory_item_to_sell_slot(name: str) -> bool:
     return True
 
 
+def return_sell_slot_item_to_inventory(name: str) -> bool:
+    layout = current_trade_layout()
+    slot = layout.right_slot()
+    if not slot:
+        log("回收出售栏物品失败，未找到右侧商品槽:", name)
+        return False
+    if not selected_currency_matches(name, "right", layout):
+        log("回收出售栏物品跳过，右侧不是目标商品:", name)
+        return False
+    if config.get("DRY_RUN"):
+        log("[DRY_RUN] Ctrl+左键回收出售栏物品:", name, slot)
+        return True
+    backend = get_input()
+    backend.mouse_move(slot[0], slot[1], duration_ms=80)
+    try:
+        backend.key_down("ctrl")
+        backend.mouse_click(button="left", hold_ms=45)
+    finally:
+        backend.key_up("ctrl")
+    time.sleep(float(config.get("INVENTORY_TO_SELL_SLOT_DELAY", 0.35)))
+    log("已从出售栏 Ctrl+左键回收到背包:", name, slot)
+    return True
+
+
 def inventory_has_item(name: str) -> bool:
     if game_unavailable_reason():
         return False
@@ -2865,6 +2896,7 @@ def place_board_sell_order(name: str, data: dict[str, Any]) -> bool:
         return False
     price = competition_price_for_current_pair(name, target_side="right")
     if price is None:
+        return_sell_slot_item_to_inventory(name)
         return False
     chaos = max(1, int(math.floor(price * order_size)))
     log("订单板挂卖单:", name, order_size, "个 ->", chaos, base, "竞争单价=", f"{price:.4f}")
