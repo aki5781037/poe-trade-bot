@@ -325,11 +325,44 @@ def selected_currency_text(side: str, layout: TradeLayout | None = None) -> tupl
     return text, normalize_currency_text(text)
 
 
+def selected_currency_icon_matches(name: str, side: str, layout: TradeLayout | None = None) -> tuple[bool, float | None]:
+    layout = layout or current_trade_layout()
+    slot = layout.left_slot() if side == "left" else layout.right_slot()
+    if not slot:
+        return False, None
+    template = template_path(f"{name}.png")
+    if not template.exists():
+        return False, None
+    crop_w = int(config.get("SELECTED_CURRENCY_ICON_CROP_W", 96))
+    crop_h = int(config.get("SELECTED_CURRENCY_ICON_CROP_H", 96))
+    x, y = slot
+    rel_x = x - layout.origin[0] - crop_w // 2
+    rel_y = y - layout.origin[1] - crop_h // 2
+    x1 = max(0, rel_x)
+    y1 = max(0, rel_y)
+    x2 = min(layout.screen.shape[1], rel_x + crop_w)
+    y2 = min(layout.screen.shape[0], rel_y + crop_h)
+    crop = layout.screen[y1:y2, x1:x2]
+    if crop.size == 0:
+        return False, None
+    match = find_image(
+        template,
+        screen=crop,
+        screen_origin=(layout.origin[0] + x1, layout.origin[1] + y1),
+        threshold=float(config.get("SELECTED_CURRENCY_ICON_THRESHOLD", 0.72)),
+        quiet=True,
+    )
+    return (match is not None), (match.score if match else None)
+
+
 def selected_currency_matches(name: str, side: str, layout: TradeLayout | None = None) -> bool:
+    layout = layout or current_trade_layout()
     raw, normalized = selected_currency_text(side, layout)
     target = normalize_currency_text(name)
-    ok = bool(target and (target in normalized or normalized.startswith(target)))
-    log("栏位通货检查:", side, name, "OCR=", repr(raw), "结果=", ok)
+    text_ok = bool(target and (target in normalized or normalized.startswith(target)))
+    icon_ok, icon_score = (False, None) if text_ok else selected_currency_icon_matches(name, side, layout)
+    ok = text_ok or icon_ok
+    log("栏位通货检查:", side, name, "OCR=", repr(raw), "图标匹配=", icon_score, "结果=", ok)
     return ok
 
 def close_currency_selector_if_open() -> bool:
@@ -949,13 +982,17 @@ def find_image(
         if not quiet:
             log("无法读取图片:", path)
         return None
+    h, w = template.shape[:2]
+    if screen.shape[0] < h or screen.shape[1] < w:
+        if not quiet:
+            log("图片匹配区域小于模板:", path.name, "区域=", screen.shape[:2], "模板=", (h, w))
+        return None
 
     if threshold is None:
         threshold = float(config["FIND_THRESHOLD"])
 
     result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     _, score, _, loc = cv2.minMaxLoc(result)
-    h, w = template.shape[:2]
     x = screen_origin[0] + loc[0] + w // 2
     y = screen_origin[1] + loc[1] + h // 2
 
@@ -2900,6 +2937,7 @@ def place_board_sell_order(name: str, data: dict[str, Any]) -> bool:
     chaos = max(1, int(math.floor(price * order_size)))
     log("订单板挂卖单:", name, order_size, "个 ->", chaos, base, "竞争单价=", f"{price:.4f}")
     if not place_order(chaos, order_size, verify_item_name=name, verify_item_side="right"):
+        return_sell_slot_item_to_inventory(name)
         return False
     data.setdefault("orders", {})[name] = {
         "state": "sell_order",
